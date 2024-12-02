@@ -1,19 +1,268 @@
-<head>
-    <title>{{ title }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }} - My Flask Application</title>
+    <link rel="stylesheet" type="text/css" href="/static/content/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="/static/content/site.css" />
+    <script src="/static/scripts/modernizr-2.6.2.js"></script>
+  </head>
 
-<body>
-    <div class="App">
-        <header class="App-header">
-            <img src="{{ url_for('static', filename='Octocat.png') }}" class="App-logo" alt="logo" />
-            <p>
-                GitHub Codespaces <span class="heart">♥️</span> Flask
-            </p>
-            <p class="small">
-                Edit <code>templates/index.html</code> and refresh to see your changes!
-            </p>
-        </header>
+  <body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="/" class="navbar-brand">Application name</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="#">Home</a>
+            </li>
+            <li>
+              <a href="#">About</a>
+            </li>
+            <li>
+              <a href="#">Contact</a>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
-</body>
 
+    <div class="container body-content">
+      <form id="form">
+        <input name="prompt" value="這是甚麼" />
+        <input type="file" id="file" name="file" multiple />
+        <input type="submit" />
+      </form>
+      <div id="output"></div>
+      <script>
+        const formEl = document.getElementById('form')
+        const outputEl = document.getElementById('output')
+        
+        let aborter = new AbortController()
+        
+        async function run() {
+          aborter.abort() // cancel previous request
+          outputEl.innerText = ''
+          aborter = new AbortController()
+          json_history = [
+            {
+              role: 'system',
+              content: 'You are an AI assistant that helps people find information.'
+            },
+            {
+              role: 'user',
+              content: '1+1等於多少?'
+            },
+            {
+              role: 'upload_file',
+              content: ''
+            }
+          ]
+          const prompt = new FormData(formEl).get('prompt')
+          try {
+            const response = await fetch('/streamingChat', {
+              signal: aborter.signal,
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userid: 'test_asus@asus.com',
+                service: 'azure',
+                version: 'gpt4o',
+                message: prompt,
+                history: json_history
+              })
+            })
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+              const decoded = decoder.decode(value, { stream: true })
+              outputEl.innerText += decoded
+            }
+          } catch (err) {
+            console.error(err)
+          }
+        }
+        // run();  // run on initial prompt
+        formEl.addEventListener('submit', function (event) {
+          event.preventDefault()
+          // run();
+          run_v2()
+          // uploadFile();
+        
+          // test();
+        })
+        //-------
+        async function uploadFile() {
+          aborter.abort() // cancel previous request
+          aborter = new AbortController()
+        
+          const formData = new FormData(formEl)
+          const files = formData.getAll('file')
+        
+          try {
+            // make request body
+            const requestBody = new FormData()
+            // requestBody.append('file', file);
+            files.forEach((file, index) => {
+              requestBody.append('file', file)
+            })
+        
+            requestBody.append(
+              'json',
+              JSON.stringify({
+                userid: 'test_asus@asus.com',
+                version: 'gpt4o'
+              })
+            )
+        
+            const response = await fetch('/uploadFiles', {
+              signal: aborter.signal,
+              method: 'POST',
+              body: requestBody
+            })
+        
+            const json = await response.json()
+            console.log(JSON.stringify(json))
+            /*
+                            {
+                               "code":"200",
+                               "files":{
+                                  "fail":[
+                                     
+                                  ],
+                                  "success":[
+                                     {
+                                        "n":"./aoccgpt2/tempfile/cbb93eb7-fae5-4f05-a131-2de957ca84d5-20240624161145.png",
+                                        "o":"拷貝.png"
+                                     },
+                                     {
+                                        "n":"./aoccgpt2/tempfile/3540b277-eae1-496b-8009-e0c886de1e37-20240624161145.pdf",
+                                        "o":"笑傲江湖.pdf"
+                                     },
+                                     {
+                                        "n":"./aoccgpt2/tempfile/4b7b358b-ed16-4ce4-8425-7da3f6d5dd72-20240624161222.txt",
+                                        "o":"test.txt"
+                                     }
+                                  ]
+                               }
+                            }
+                            */
+          } catch (err) {
+            console.error(err)
+          }
+        }
+        
+        async function run_v2() {
+          aborter.abort() // cancel previous request
+        
+          outputEl.innerText = ''
+          aborter = new AbortController()
+        
+          const json_history = [
+            {
+              role: 'system',
+              content: 'You are an AI assistant that helps people find information.'
+            },
+            {
+              role: 'user',
+              content: '1+1等於多少?'
+            },
+            
+            {
+              role: 'upload_file',
+              content: '',
+              path: 'https://stage-iotapi.asus.com/aoccgpt2/files_storage/?file_nm=AOCCGPT-20240709090238-cea0d566702e46dbb36c3175c4993fa3.epub'
+            }
+          ]
+        
+          // get form data
+          const formData = new FormData(formEl)
+          const files = formData.getAll('file')
+          const jsonInput = formData.get('json')
+          const prompt = formData.get('prompt')
+        
+          try {
+            // make request body
+            const requestBody = new FormData()
+            // requestBody.append('file', file);
+            files.forEach((file, index) => {
+              requestBody.append('file', file)
+            })
+        
+            requestBody.append(
+              'json',
+              JSON.stringify({
+                userid: 'test_asus@asus.com',
+                version: 'gpt4o',
+                message: prompt,
+                history: json_history
+              })
+            )
+        
+            const response = await fetch('/streamingChat/v2', {
+              signal: aborter.signal,
+              method: 'POST',
+              body: requestBody
+            })
+        
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+              const decoded = decoder.decode(value, { stream: true })
+              outputEl.innerText += decoded
+            }
+          } catch (err) {
+            console.error(err)
+          }
+        }
+        
+        async function test() {
+          // const response = await fetch('/cloneFAISSTest', {
+          //     signal: aborter.signal,
+          //     method: 'POST',
+          // });
+        
+          const response = await fetch('/YoutubeTest', {
+            signal: aborter.signal,
+            method: 'POST'
+          })
+        
+          // const response = await fetch('/HtmlTest', {
+          //     signal: aborter.signal,
+          //     method: 'POST',
+          // });
+        
+          const json = await response.json()
+          console.log(JSON.stringify(json))
+        }
+      </script>
+      <hr />
+      <footer>
+        <p>&copy; {{ year }} - My Flask Application</p>
+      </footer>
+    </div>
+
+    <script src="/static/scripts/jquery-1.10.2.js"></script>
+    <script src="/static/scripts/bootstrap.js"></script>
+    <script src="/static/scripts/respond.js"></script>
+    {% block scripts %}
+    {% endblock %}
+  </body>
 </html>
